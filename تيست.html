@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حب آدم، رنيم ومصطفى</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: white;
+            font-family: 'Arial', sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        .title {
+            position: fixed;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: #000;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+        @media screen and (max-width: 768px) {
+            .title {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="title">❤ آدم • رنيم • مصطفى ❤</div>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        class Ball {
+            constructor(name) {
+                this.name = name;
+                this.radius = 30;
+                this.x = Math.random() * (canvas.width - this.radius * 2) + this.radius;
+                this.y = Math.random() * (canvas.height - this.radius * 2) + this.radius;
+                this.dx = (Math.random() - 0.5) * 4;
+                this.dy = (Math.random() - 0.5) * 4;
+                this.color = this.getNameColor();
+                this.mass = 1; // الكتلة الافتراضية لكل كرة
+            }
+
+            getNameColor() {
+                const colors = { 'آدم': '#ff69b4', 'رنيم': '#00ff00', 'مصطفى': '#4169e1' };
+                return colors[this.name];
+            }
+
+            update() {
+                if (this.x + this.radius > canvas.width || this.x - this.radius < 0) this.dx = -this.dx;
+                if (this.y + this.radius > canvas.height || this.y - this.radius < 0) this.dy = -this.dy;
+
+                this.x += this.dx;
+                this.y += this.dy;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                
+                ctx.fillStyle = 'black';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.name, this.x, this.y + 5);
+            }
+        }
+
+        class Heart {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.dy = -Math.random() * 2 - 1;
+                this.opacity = 1;
+            }
+
+            update() {
+                this.y += this.dy;
+                this.opacity -= 0.02;
+            }
+
+            draw() {
+                ctx.fillStyle = `rgba(255, 0, 0, ${this.opacity})`;
+                ctx.font = '20px Arial';
+                ctx.fillText('❤️', this.x, this.y);
+            }
+        }
+
+        function checkCollision(ball1, ball2) {
+            const dx = ball1.x - ball2.x;
+            const dy = ball1.y - ball2.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return distance < ball1.radius + ball2.radius;
+        }
+
+        function resolveCollision(ball1, ball2) {
+            const dx = ball1.x - ball2.x;
+            const dy = ball1.y - ball2.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance === 0) return;
+
+            // الاتجاه الطبيعي للتصادم
+            const normalX = dx / distance;
+            const normalY = dy / distance;
+
+            // السرعة النسبية
+            const relativeVelocityX = ball1.dx - ball2.dx;
+            const relativeVelocityY = ball1.dy - ball2.dy;
+
+            // حساب مقدار التصادم بناءً على الاتجاه الطبيعي
+            const speed = relativeVelocityX * normalX + relativeVelocityY * normalY;
+
+            if (speed > 0) return; // لا داعي لحل التصادم إذا كانت الكرات تبتعد عن بعضها
+
+            // تطبيق قانون التصادم المرن
+            const impulse = (2 * speed) / (ball1.mass + ball2.mass);
+
+            ball1.dx -= impulse * ball2.mass * normalX;
+            ball1.dy -= impulse * ball2.mass * normalY;
+            ball2.dx += impulse * ball1.mass * normalX;
+            ball2.dy += impulse * ball1.mass * normalY;
+
+            // إصلاح التداخل ومنع الالتصاق
+            const overlap = (ball1.radius + ball2.radius - distance) / 2;
+            ball1.x += normalX * overlap;
+            ball1.y += normalY * overlap;
+            ball2.x -= normalX * overlap;
+            ball2.y -= normalY * overlap;
+        }
+
+        const names = ['آدم', 'آدم', 'آدم', 'رنيم', 'رنيم', 'رنيم', 'مصطفى', 'مصطفى', 'مصطفى'];
+        let balls = names.map(name => new Ball(name));
+        let hearts = [];
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            balls.forEach(ball => {
+                ball.update();
+                ball.draw();
+            });
+
+            for (let i = 0; i < balls.length; i++) {
+                for (let j = i + 1; j < balls.length; j++) {
+                    if (checkCollision(balls[i], balls[j])) {
+                        resolveCollision(balls[i], balls[j]);
+                        hearts.push(new Heart((balls[i].x + balls[j].x) / 2, (balls[i].y + balls[j].y) / 2));
+                    }
+                }
+            }
+
+            hearts.forEach((heart, index) => {
+                heart.update();
+                heart.draw();
+                if (heart.opacity <= 0) hearts.splice(index, 1);
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
